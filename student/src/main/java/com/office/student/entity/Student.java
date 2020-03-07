@@ -65,15 +65,4 @@ public class Student {
         this.createTime = createTime;
     }
 
-    @Override
-    public String toString() {
-        return "Student{" +
-                "id='" + id + '\'' +
-                ", username='" + username + '\'' +
-                ", password='" + password + '\'' +
-                ", token='" + token + '\'' +
-                ", email='" + email + '\'' +
-                ", createTime=" + createTime +
-                '}';
-    }
 }
