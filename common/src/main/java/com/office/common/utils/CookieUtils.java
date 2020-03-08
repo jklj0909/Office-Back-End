@@ -143,4 +143,11 @@ public final class CookieUtils {
         }
     }
 
+    public static void removeCookie(HttpServletResponse response, String name) {
+        Cookie cookie = new Cookie(name, null);
+        cookie.setPath("/");
+        cookie.setMaxAge(0);
+        response.addCookie(cookie);
+    }
+
 }

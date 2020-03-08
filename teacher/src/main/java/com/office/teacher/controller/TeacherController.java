@@ -1,13 +1,12 @@
-package com.office.student.controller;
+package com.office.teacher.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.office.common.entity.ReplyMessage;
-import com.office.common.utils.CodecUtils;
 import com.office.common.utils.CookieUtils;
-import com.office.student.entity.Student;
-import com.office.student.entity.StudentInfo;
-import com.office.student.service.StudentService;
+import com.office.teacher.entity.Teacher;
+import com.office.teacher.entity.TeacherInfo;
+import com.office.teacher.service.TeacherService;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -18,36 +17,26 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 
-import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 @Controller
-@RequestMapping("student")
-public class StudentController {
-    private StudentService studentService;
+@RequestMapping("teacher")
+public class TeacherController {
+    private TeacherService teacherService;
 
     private static final String USER_COOKIE = "UserCookie";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Autowired
-    public void setStudentService(StudentService studentService) {
-        this.studentService = studentService;
-    }
-
-    @PostMapping("register")
-    public ResponseEntity<ReplyMessage> register(@RequestBody Student student) {
-        ReplyMessage message = studentService.register(student);
-        if (!message.isSuccess()) {
-            return ResponseEntity.badRequest().body(message);
-        }
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+    public void setTeacherService(TeacherService TeacherService) {
+        this.teacherService = TeacherService;
     }
 
     @PostMapping("login")
-    public ResponseEntity<ReplyMessage<StudentInfo>> login(HttpServletRequest request, HttpServletResponse response, @RequestBody Student student) {
-        ReplyMessage<StudentInfo> message = studentService.login(student);
+    public ResponseEntity<ReplyMessage<TeacherInfo>> login(HttpServletRequest request, HttpServletResponse response, @RequestBody Teacher teacher) {
+        ReplyMessage<TeacherInfo> message = teacherService.login(teacher);
         if (!message.isSuccess()) {
             return ResponseEntity.badRequest().body(message);
         }
