@@ -12,7 +12,6 @@
         <module>teacher</module>
         <module>student</module>
         <module>common</module>
-        <module>register</module>
     </modules>
 
     <properties>

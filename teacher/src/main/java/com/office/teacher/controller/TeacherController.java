@@ -34,6 +34,12 @@ public class TeacherController {
         this.teacherService = TeacherService;
     }
 
+    /**
+     * 用户登录检验
+     *
+     * @param teacher 用户对象
+     * @author jie
+     **/
     @PostMapping("login")
     public ResponseEntity<ReplyMessage<TeacherInfo>> login(HttpServletRequest request, HttpServletResponse response, @RequestBody Teacher teacher) {
         ReplyMessage<TeacherInfo> message = teacherService.login(teacher);
@@ -49,8 +55,13 @@ public class TeacherController {
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(message);
     }
 
+    /**
+     * 检验用户登录状况
+     *
+     * @author jie
+     **/
     @GetMapping("checkLogin")
-    public ResponseEntity<ReplyMessage> checkLogin(HttpServletRequest request, HttpServletResponse response) {
+    public ResponseEntity<ReplyMessage> checkLogin(HttpServletRequest request) {
         ReplyMessage message = new ReplyMessage();
         String value = CookieUtils.getCookieValue(request, USER_COOKIE, true);
         if (StringUtils.isBlank(value)) {
@@ -65,6 +76,11 @@ public class TeacherController {
         return ResponseEntity.ok(message);
     }
 
+    /**
+     * 登出
+     *
+     * @author jie
+     **/
     @PostMapping("logout")
     public ResponseEntity logout(HttpServletResponse response) {
         CookieUtils.removeCookie(response, USER_COOKIE);
