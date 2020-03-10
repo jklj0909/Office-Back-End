@@ -1,17 +1,13 @@
 package com.office.teacher.controller;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.office.common.entity.QuestionInfo;
 import com.office.common.entity.QuestionMessage;
 import com.office.common.entity.QuestionStep;
 import com.office.common.entity.ReplyMessage;
-import com.office.common.entity.step.QuestionStepWord;
 import com.office.common.utils.CookieUtils;
-import com.office.teacher.entity.Teacher;
 import com.office.teacher.entity.TeacherInfo;
 import com.office.teacher.service.QuestionInfoService;
-import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -69,11 +65,19 @@ public class QuestionInfoController {
         } catch (Exception e) {
             username = null;
         }
-        ReplyMessage<QuestionMessage> message = questionInfoService.checkIdIfExist(id, username);
-        if (!message.isSuccess()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(message);
+        ReplyMessage<QuestionMessage> message = null;
+        try {
+            message = questionInfoService.checkIdIfExist(id, username);
+            if (!message.isSuccess()) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(message);
+            }
+            return ResponseEntity.ok(message);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-        return ResponseEntity.ok(message);
+        message = new ReplyMessage<>();
+        message.setMessage("服务器内部错误,请稍后重试或联系管理员");
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(message);
     }
 
     /**
@@ -119,4 +123,18 @@ public class QuestionInfoController {
         }
     }
 
+    @GetMapping("getStepDescription")
+    public ResponseEntity<ReplyMessage> getStepDescription(@RequestParam(value = "id", defaultValue = "") String id,
+                                                           @RequestParam(value = "type", defaultValue = "") String type,
+                                                           @RequestParam(value = "step", defaultValue = "2") Integer step) {
+        try {
+            ReplyMessage message = questionInfoService.getStepDescription(id, type, step);
+            if (message.isSuccess()) {
+                return ResponseEntity.ok(message);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return ResponseEntity.notFound().build();
+    }
 }

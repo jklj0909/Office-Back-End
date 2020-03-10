@@ -6,6 +6,7 @@ public class QuestionStep {
     private String id;
     private Integer step;
     private String difference;
+    private String stepDescription;
     @Transient
     private String questionType;
 
@@ -31,6 +32,14 @@ public class QuestionStep {
 
     public void setDifference(String difference) {
         this.difference = difference;
+    }
+
+    public String getStepDescription() {
+        return stepDescription;
+    }
+
+    public void setStepDescription(String stepDescription) {
+        this.stepDescription = stepDescription;
     }
 
     public String getQuestionType() {

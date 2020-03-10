@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 import org.springframework.web.multipart.MultipartFile;
 import tk.mybatis.mapper.entity.Example;
 
@@ -26,6 +27,7 @@ import java.io.File;
 import java.io.IOException;
 import java.sql.Timestamp;
 import java.util.Date;
+import java.util.List;
 
 @Service
 @Transactional
@@ -78,7 +80,7 @@ public class QuestionInfoService {
      * @return 是否存在该id
      * @author jie
      **/
-    public ReplyMessage<QuestionMessage> checkIdIfExist(String id, String username) {
+    public ReplyMessage<QuestionMessage> checkIdIfExist(String id, String username) throws RuntimeException {
         ReplyMessage<QuestionMessage> message = new ReplyMessage();
         QuestionInfo questionInfo = questionInfoMapper.selectByPrimaryKey(id);
         if (username == null) {
@@ -95,6 +97,13 @@ public class QuestionInfoService {
             message.setSuccess(false);
             message.setMessage("您没有操作该试题的权限");
             return message;
+        }
+        if (questionInfo.getState() > 0 && questionInfo.getState() < 31) {
+            String stepDescription = queryStepDescription(questionInfo.getId(), questionInfo.getQuestionType(), questionInfo.getState());
+            if (stepDescription == null) {
+                stepDescription = "";
+            }
+            message.setMessage(stepDescription);
         }
         message.setSuccess(true);
         QuestionMessage questionMessage = new QuestionMessage();
@@ -203,10 +212,95 @@ public class QuestionInfoService {
     }
 
     public void addQuestionStep(QuestionStep questionStep) throws Exception {
-        Example example = new Example(QuestionStep.class);
+        if (StringUtils.equals(questionStep.getQuestionType(), "word")) {
+            Example example = new Example(QuestionStepWord.class);
+            List<QuestionStepWord> questionStepWords = findQuestionStepWordByStepAndId(example, questionStep);
+            QuestionStepWord questionStepWord = new QuestionStepWord();
+            BeanUtils.copyProperties(questionStep, questionStepWord);
+            if (CollectionUtils.isEmpty(questionStepWords)) {
+                questionStepWordMapper.insertSelective(questionStepWord);
+            } else {
+                questionStepWordMapper.updateByExampleSelective(questionStepWord, example);
+            }
+        } else if (StringUtils.equals(questionStep.getQuestionType(), "excel")) {
+            Example example = new Example(QuestionStepExcel.class);
+            List<QuestionStepExcel> questionStepExcels = findQuestionStepExcelByStepAndId(example, questionStep);
+            QuestionStepExcel questionStepExcel = new QuestionStepExcel();
+            BeanUtils.copyProperties(questionStep, questionStepExcel);
+            if (CollectionUtils.isEmpty(questionStepExcels)) {
+                questionStepExcelMapper.insertSelective(questionStepExcel);
+            } else {
+                questionStepExcelMapper.updateByExampleSelective(questionStepExcel, example);
+            }
+        } else if (StringUtils.equals(questionStep.getQuestionType(), "ppt")) {
+            Example example = new Example(QuestionStep.class);
+            List<QuestionStepPpt> questionStepPpts = findQuestionStepPptByStepAndId(example, questionStep);
+            QuestionStepPpt questionStepPpt = new QuestionStepPpt();
+            BeanUtils.copyProperties(questionStep, questionStepPpt);
+            if (CollectionUtils.isEmpty(questionStepPpts)) {
+                questionStepPptMapper.insertSelective(questionStepPpt);
+            } else {
+                questionStepPptMapper.updateByExampleSelective(questionStepPpt, example);
+            }
+        }
+    }
+
+    public List<QuestionStepWord> findQuestionStepWordByStepAndId(Example example, QuestionStep questionStep) {
         Example.Criteria criteria = example.createCriteria();
         criteria.andEqualTo("step", questionStep.getStep()).andEqualTo("id", questionStep.getId());
-        //先查找，再插入
+        return questionStepWordMapper.selectByExample(example);
+    }
 
+    public List<QuestionStepExcel> findQuestionStepExcelByStepAndId(Example example, QuestionStep questionStep) {
+        Example.Criteria criteria = example.createCriteria();
+        criteria.andEqualTo("step", questionStep.getStep()).andEqualTo("id", questionStep.getId());
+        return questionStepExcelMapper.selectByExample(example);
+    }
+
+    public List<QuestionStepPpt> findQuestionStepPptByStepAndId(Example example, QuestionStep questionStep) {
+        Example.Criteria criteria = example.createCriteria();
+        criteria.andEqualTo("step", questionStep.getStep()).andEqualTo("id", questionStep.getId());
+        return questionStepPptMapper.selectByExample(example);
+    }
+
+    public ReplyMessage getStepDescription(String id, String type, Integer step) throws RuntimeException {
+        ReplyMessage message = new ReplyMessage();
+        if (StringUtils.equals(id, "") || StringUtils.equals(type, "") || step == -2) {
+            message.setSuccess(false);
+            return message;
+        }
+        String stepDescription = queryStepDescription(id, type, step);
+        message.setSuccess(true);
+        message.setMessage(stepDescription);
+        return message;
+    }
+
+    public String queryStepDescription(String id, String questionType, Integer state) throws RuntimeException {
+        if (StringUtils.equals(questionType, "word")) {
+            QuestionStepWord questionStepWord = new QuestionStepWord();
+            questionStepWord.setId(id);
+            questionStepWord.setStep(state);
+            QuestionStepWord newQuestionStepWord = questionStepWordMapper.selectOne(questionStepWord);
+            if (newQuestionStepWord != null) {
+                return newQuestionStepWord.getStepDescription();
+            }
+        } else if (StringUtils.equals(questionType, "ppt")) {
+            QuestionStepPpt questionStepPpt = new QuestionStepPpt();
+            questionStepPpt.setId(id);
+            questionStepPpt.setStep(state);
+            QuestionStepPpt newQuestionStepPpt = questionStepPptMapper.selectOne(questionStepPpt);
+            if (newQuestionStepPpt != null) {
+                return newQuestionStepPpt.getStepDescription();
+            }
+        } else if (StringUtils.equals(questionType, "excel")) {
+            QuestionStepExcel questionStepExcel = new QuestionStepExcel();
+            questionStepExcel.setId(id);
+            questionStepExcel.setStep(state);
+            QuestionStepExcel newQuestionStepExcel = questionStepExcelMapper.selectOne(questionStepExcel);
+            if (newQuestionStepExcel != null) {
+                return newQuestionStepExcel.getStepDescription();
+            }
+        }
+        return "";
     }
 }
