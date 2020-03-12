@@ -5,7 +5,7 @@ import javax.persistence.Transient;
 public class QuestionStep {
     private String id;
     private Integer step;
-    private String difference;
+    private String stepId;
     private String stepDescription;
     @Transient
     private String questionType;
@@ -26,12 +26,12 @@ public class QuestionStep {
         this.step = step;
     }
 
-    public String getDifference() {
-        return difference;
+    public String getStepId() {
+        return stepId;
     }
 
-    public void setDifference(String difference) {
-        this.difference = difference;
+    public void setStepId(String stepId) {
+        this.stepId = stepId;
     }
 
     public String getStepDescription() {

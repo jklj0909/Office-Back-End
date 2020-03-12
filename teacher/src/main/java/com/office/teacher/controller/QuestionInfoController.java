@@ -98,6 +98,15 @@ public class QuestionInfoController {
         }
     }
 
+    /**
+     * 上传某一操作步骤的文件
+     *
+     * @param id         题目的id
+     * @param uploadFile 上传的文件
+     * @param type       试题类型
+     * @param step       试题某一步骤的计数
+     * @author jie
+     **/
     @PostMapping("upload/step/{type}/{id}/{step}")
     public ResponseEntity<ReplyMessage> uploadStepFile(@RequestParam("file") MultipartFile uploadFile, @PathVariable("type") String type,
                                                        @PathVariable("id") String id, @PathVariable("step") Integer step) {
@@ -112,6 +121,12 @@ public class QuestionInfoController {
         return ResponseEntity.badRequest().build();
     }
 
+    /**
+     * 更新步骤描述信息
+     *
+     * @param questionStep 试题步骤对象
+     * @author jie
+     **/
     @PostMapping("stepDescription")
     public ResponseEntity submitStepDescription(@RequestBody QuestionStep questionStep) {
         try {
@@ -123,6 +138,14 @@ public class QuestionInfoController {
         }
     }
 
+    /**
+     * 获取试题某一步骤的描述信息
+     *
+     * @param id   题目的id
+     * @param step 试题步骤数
+     * @param type 试题类型
+     * @author jie
+     **/
     @GetMapping("getStepDescription")
     public ResponseEntity<ReplyMessage> getStepDescription(@RequestParam(value = "id", defaultValue = "") String id,
                                                            @RequestParam(value = "type", defaultValue = "") String type,
@@ -136,5 +159,20 @@ public class QuestionInfoController {
             e.printStackTrace();
         }
         return ResponseEntity.notFound().build();
+    }
+
+    /**
+     * 进行xml文件的比对
+     *
+     * @param questionInfo 试题对象
+     * @author jie
+     **/
+    @PostMapping("completeEdit")
+    public ResponseEntity<ReplyMessage> completeEdit(@RequestBody QuestionInfo questionInfo) {
+        ReplyMessage message = questionInfoService.generateXmlDifference(questionInfo);
+        if (!message.isSuccess()) {
+            return ResponseEntity.badRequest().body(message);
+        }
+        return ResponseEntity.ok().build();
     }
 }

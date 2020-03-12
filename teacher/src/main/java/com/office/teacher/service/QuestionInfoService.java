@@ -4,19 +4,17 @@ import com.office.common.entity.QuestionInfo;
 import com.office.common.entity.QuestionMessage;
 import com.office.common.entity.QuestionStep;
 import com.office.common.entity.ReplyMessage;
+import com.office.common.entity.diff.QuestionDiffWord;
 import com.office.common.entity.step.QuestionStepExcel;
 import com.office.common.entity.step.QuestionStepPpt;
 import com.office.common.entity.step.QuestionStepWord;
 import com.office.common.utils.CodecUtils;
-import com.office.teacher.repository.QuestionInfoMapper;
-import com.office.teacher.repository.QuestionStepExcelMapper;
-import com.office.teacher.repository.QuestionStepPptMapper;
-import com.office.teacher.repository.QuestionStepWordMapper;
+import com.office.common.utils.XmlDiffUtils;
+import com.office.teacher.repository.*;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -26,6 +24,7 @@ import tk.mybatis.mapper.entity.Example;
 import java.io.File;
 import java.io.IOException;
 import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -36,6 +35,9 @@ public class QuestionInfoService {
     private QuestionStepWordMapper questionStepWordMapper;
     private QuestionStepExcelMapper questionStepExcelMapper;
     private QuestionStepPptMapper questionStepPptMapper;
+    private QuestionDiffExcelMapper questionDiffExcelMapper;
+    private QuestionDiffWordMapper questionDiffWordMapper;
+    private QuestionDiffPptMapper questionDiffPptMapper;
     private static final String ROOT_PATH = "G:/testWord";
 
     @Autowired
@@ -56,6 +58,21 @@ public class QuestionInfoService {
     @Autowired
     public void setQuestionStepPptMapper(QuestionStepPptMapper questionStepPptMapper) {
         this.questionStepPptMapper = questionStepPptMapper;
+    }
+
+    @Autowired
+    public void setQuestionDiffExcelMapper(QuestionDiffExcelMapper questionDiffExcelMapper) {
+        this.questionDiffExcelMapper = questionDiffExcelMapper;
+    }
+
+    @Autowired
+    public void setQuestionDiffWordMapper(QuestionDiffWordMapper questionDiffWordMapper) {
+        this.questionDiffWordMapper = questionDiffWordMapper;
+    }
+
+    @Autowired
+    public void setQuestionDiffPptMapper(QuestionDiffPptMapper questionDiffPptMapper) {
+        this.questionDiffPptMapper = questionDiffPptMapper;
     }
 
     /**
@@ -153,18 +170,18 @@ public class QuestionInfoService {
         QuestionInfo questionInfo = questionInfoMapper.selectByPrimaryKey(id);
         String parentPath = ROOT_PATH + "/" + type + "/" + id + "/" + questionInfo.getUsername();
         String targetFilePath = parentPath + "/" + step + fileName.substring(fileName.lastIndexOf("."));
-        //将后面步骤的文件删除
         if (step > questionInfo.getState()) {
             ReplyMessage message = new ReplyMessage();
             message.setSuccess(false);
             return message;
         }
+        //将后面步骤的文件删除
         if (questionInfo.getState() > step) {
             questionInfo.setState(step);
             questionInfoMapper.updateByPrimaryKeySelective(questionInfo);
             File parentDirectory = new File(parentPath);
             for (File file : parentDirectory.listFiles()) {
-                if (Integer.valueOf(file.getName().substring(file.getName().indexOf("."))) >= step) {
+                if (Integer.valueOf(file.getName().substring(0, file.getName().indexOf("."))) >= step) {
                     try {
                         FileUtils.forceDelete(file);
                     } catch (IOException e) {
@@ -172,6 +189,13 @@ public class QuestionInfoService {
                     }
                 }
             }
+        }
+        if (step > 0) {
+            QuestionStep questionStep = new QuestionStep();
+            questionStep.setStep(step);
+            questionStep.setQuestionType(type);
+            questionStep.setId(id);
+            addQuestionStep(questionStep);
         }
         return uploadFile(uploadFile, parentPath, targetFilePath, id);
     }
@@ -211,13 +235,20 @@ public class QuestionInfoService {
         }
     }
 
-    public void addQuestionStep(QuestionStep questionStep) throws Exception {
+    /**
+     * 保存新的步骤信息
+     *
+     * @param questionStep 试题一个步骤的对象
+     * @author jie
+     **/
+    public void addQuestionStep(QuestionStep questionStep) throws RuntimeException {
         if (StringUtils.equals(questionStep.getQuestionType(), "word")) {
             Example example = new Example(QuestionStepWord.class);
             List<QuestionStepWord> questionStepWords = findQuestionStepWordByStepAndId(example, questionStep);
             QuestionStepWord questionStepWord = new QuestionStepWord();
             BeanUtils.copyProperties(questionStep, questionStepWord);
             if (CollectionUtils.isEmpty(questionStepWords)) {
+                questionStepWord.setStepId(CodecUtils.generateUUID());
                 questionStepWordMapper.insertSelective(questionStepWord);
             } else {
                 questionStepWordMapper.updateByExampleSelective(questionStepWord, example);
@@ -228,6 +259,7 @@ public class QuestionInfoService {
             QuestionStepExcel questionStepExcel = new QuestionStepExcel();
             BeanUtils.copyProperties(questionStep, questionStepExcel);
             if (CollectionUtils.isEmpty(questionStepExcels)) {
+                questionStep.setStepId(CodecUtils.generateUUID());
                 questionStepExcelMapper.insertSelective(questionStepExcel);
             } else {
                 questionStepExcelMapper.updateByExampleSelective(questionStepExcel, example);
@@ -238,6 +270,7 @@ public class QuestionInfoService {
             QuestionStepPpt questionStepPpt = new QuestionStepPpt();
             BeanUtils.copyProperties(questionStep, questionStepPpt);
             if (CollectionUtils.isEmpty(questionStepPpts)) {
+                questionStep.setStepId(CodecUtils.generateUUID());
                 questionStepPptMapper.insertSelective(questionStepPpt);
             } else {
                 questionStepPptMapper.updateByExampleSelective(questionStepPpt, example);
@@ -245,24 +278,50 @@ public class QuestionInfoService {
         }
     }
 
+    /**
+     * 根据条件查找步骤信息(word)
+     *
+     * @param questionStep 试题一个步骤的对象
+     * @author jie
+     **/
     public List<QuestionStepWord> findQuestionStepWordByStepAndId(Example example, QuestionStep questionStep) {
         Example.Criteria criteria = example.createCriteria();
         criteria.andEqualTo("step", questionStep.getStep()).andEqualTo("id", questionStep.getId());
         return questionStepWordMapper.selectByExample(example);
     }
 
+    /**
+     * 根据条件查找步骤信息(excel)
+     *
+     * @param questionStep 试题一个步骤的对象
+     * @author jie
+     **/
     public List<QuestionStepExcel> findQuestionStepExcelByStepAndId(Example example, QuestionStep questionStep) {
         Example.Criteria criteria = example.createCriteria();
         criteria.andEqualTo("step", questionStep.getStep()).andEqualTo("id", questionStep.getId());
         return questionStepExcelMapper.selectByExample(example);
     }
 
+    /**
+     * 根据条件查找步骤信息(ppt)
+     *
+     * @param questionStep 试题一个步骤的对象
+     * @author jie
+     **/
     public List<QuestionStepPpt> findQuestionStepPptByStepAndId(Example example, QuestionStep questionStep) {
         Example.Criteria criteria = example.createCriteria();
         criteria.andEqualTo("step", questionStep.getStep()).andEqualTo("id", questionStep.getId());
         return questionStepPptMapper.selectByExample(example);
     }
 
+    /**
+     * 根据条件查找对应试题步骤的描述信息
+     *
+     * @param id   试题一个步骤的对象
+     * @param step 当前的步骤
+     * @param type 试题的种类
+     * @author jie
+     **/
     public ReplyMessage getStepDescription(String id, String type, Integer step) throws RuntimeException {
         ReplyMessage message = new ReplyMessage();
         if (StringUtils.equals(id, "") || StringUtils.equals(type, "") || step == -2) {
@@ -275,6 +334,14 @@ public class QuestionInfoService {
         return message;
     }
 
+    /**
+     * 根据条件查找对应试题步骤的描述信息
+     *
+     * @param id           试题一个步骤的对象
+     * @param state        当前的步骤
+     * @param questionType 试题的种类
+     * @author jie
+     **/
     public String queryStepDescription(String id, String questionType, Integer state) throws RuntimeException {
         if (StringUtils.equals(questionType, "word")) {
             QuestionStepWord questionStepWord = new QuestionStepWord();
@@ -302,5 +369,97 @@ public class QuestionInfoService {
             }
         }
         return "";
+    }
+
+    /**
+     * 根据文件类型的不同分别进行xml文件比对
+     *
+     * @param questionInfo 试题对象
+     * @author jie
+     **/
+    public ReplyMessage generateXmlDifference(QuestionInfo questionInfo) {
+        ReplyMessage message = null;
+        if (StringUtils.equals(questionInfo.getQuestionType(), "word")) {
+            message = generateWordXmlDifference(questionInfo);
+        } else if (StringUtils.equals(questionInfo.getQuestionType(), "excel")) {
+            message = generateExcelXmlDifference(questionInfo);
+        } else if (StringUtils.equals(questionInfo.getQuestionType(), "ppt")) {
+            message = generatePptXmlDifference(questionInfo);
+        } else {
+            message = new ReplyMessage();
+            message.setSuccess(false);
+            message.setMessage("请刷新界面或者之后重试,如无法解决请联系管理员");
+        }
+        return message;
+    }
+
+    /**
+     * 进行excel的xml文件比对
+     *
+     * @param questionInfo 试题对象
+     * @author jie
+     **/
+    private ReplyMessage generateExcelXmlDifference(QuestionInfo questionInfo) {
+        ReplyMessage message = new ReplyMessage();
+        //todo
+        message.setSuccess(true);
+        return message;
+    }
+
+    /**
+     * 根进行ppt的xml文件比对
+     *
+     * @param questionInfo 试题对象
+     * @author jie
+     **/
+    private ReplyMessage generatePptXmlDifference(QuestionInfo questionInfo) {
+        ReplyMessage message = new ReplyMessage();
+        //todo
+        message.setSuccess(true);
+        return message;
+    }
+
+    /**
+     * 进行word的xml文件比对
+     *
+     * @param questionInfo 试题对象
+     * @author jie
+     **/
+    private ReplyMessage generateWordXmlDifference(QuestionInfo questionInfo) {
+        ReplyMessage message = new ReplyMessage();
+        String parentPath = ROOT_PATH + "/" + questionInfo.getQuestionType() + "/" + questionInfo.getId() + "/" + questionInfo.getUsername();
+        ArrayList<String> list = new ArrayList<>();
+        QuestionDiffWord questionDiffWord = new QuestionDiffWord();
+        QuestionStepWord questionStepWord = new QuestionStepWord();
+        for (int i = 1; i <= 30; i++) {
+            String oldPath = parentPath + "/" + (i - 1) + ".docx";
+            String newPath = parentPath + "/" + i + ".docx";
+            try {
+                list = XmlDiffUtils.dealXmlDiff(oldPath, newPath, parentPath);
+            } catch (Exception e) {
+                e.printStackTrace();
+                message.setSuccess(false);
+                message.setMessage("第" + i + "步比对失败,请从这一步开始重新上传(如果不是您的文件格式有误或者这一步文件损坏导致的问题,请联系管理员)");
+                return message;
+            }
+            questionStepWord.setStep(i);
+            questionStepWord.setId(questionInfo.getId());
+            QuestionStepWord stepWord = questionStepWordMapper.selectOne(questionStepWord);
+            if (stepWord == null) {
+                message.setSuccess(false);
+                message.setMessage("您似乎没有进行第" + i + "步的上传,请重试");
+                return message;
+            }
+            questionDiffWord.setStepId(stepWord.getStepId());
+            questionDiffWordMapper.delete(questionDiffWord);
+            QuestionDiffWord insertDiffWord = new QuestionDiffWord();
+            insertDiffWord.setStepId(stepWord.getStepId());
+            for (String diff : list) {
+                insertDiffWord.setDifference(diff);
+                questionDiffWordMapper.insert(insertDiffWord);
+            }
+        }
+        message.setSuccess(true);
+        return message;
     }
 }
