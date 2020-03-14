@@ -1,17 +1,17 @@
 package com.office.teacher.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.office.common.entity.QuestionInfo;
-import com.office.common.entity.QuestionMessage;
-import com.office.common.entity.QuestionStep;
-import com.office.common.entity.ReplyMessage;
+import com.office.common.entity.*;
 import com.office.common.utils.CookieUtils;
 import com.office.teacher.entity.TeacherInfo;
 import com.office.teacher.service.QuestionInfoService;
+import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -174,5 +174,47 @@ public class QuestionInfoController {
             return ResponseEntity.badRequest().body(message);
         }
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("getQuestionInfo")
+    public ResponseEntity<PageResult<QuestionInfo>> getQuestionInfo
+            (HttpServletRequest request,
+             @RequestParam(value = "types", required = false) String[] types,
+             @RequestParam(value = "page", defaultValue = "1") Integer page,
+             @RequestParam(value = "column", required = false) String column,
+             @RequestParam(value = "sort", defaultValue = "asc") String sort) {
+        String username = null;
+        try {
+            username = getUsername(request);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.notFound().build();
+        }
+        try {
+            PageResult<QuestionInfo> questionInfos = questionInfoService.getQuestionInfo(types, page, column, sort, username);
+            return ResponseEntity.ok(questionInfos);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return ResponseEntity.badRequest().build();
+    }
+
+    @DeleteMapping("deleteQuestionInfo")
+    public ResponseEntity deleteQuestionInfo(HttpServletRequest request, @RequestParam("id") String id, @RequestParam("questionType") String questionType) {
+        try {
+            questionInfoService.deleteQuestionInfo(id, questionType);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().build();
+        }
+        return ResponseEntity.ok().build();
+    }
+
+    private static String getUsername(HttpServletRequest request) throws Exception {
+        String value = CookieUtils.getCookieValue(request, USER_COOKIE, true);
+        if (StringUtils.isBlank(value)) {
+            return null;
+        }
+        return MAPPER.readValue(value, TeacherInfo.class).getUsername();
     }
 }

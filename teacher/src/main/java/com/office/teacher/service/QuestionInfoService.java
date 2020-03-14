@@ -1,9 +1,10 @@
 package com.office.teacher.service;
 
-import com.office.common.entity.QuestionInfo;
-import com.office.common.entity.QuestionMessage;
-import com.office.common.entity.QuestionStep;
-import com.office.common.entity.ReplyMessage;
+import com.github.pagehelper.PageHelper;
+import com.github.pagehelper.PageInfo;
+import com.office.common.entity.*;
+import com.office.common.entity.diff.QuestionDiffExcel;
+import com.office.common.entity.diff.QuestionDiffPpt;
 import com.office.common.entity.diff.QuestionDiffWord;
 import com.office.common.entity.step.QuestionStepExcel;
 import com.office.common.entity.step.QuestionStepPpt;
@@ -13,6 +14,7 @@ import com.office.common.utils.XmlDiffUtils;
 import com.office.teacher.repository.*;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
+import org.assertj.core.util.Arrays;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -461,5 +463,107 @@ public class QuestionInfoService {
         }
         message.setSuccess(true);
         return message;
+    }
+
+    public PageResult<QuestionInfo> getQuestionInfo(String[] types, Integer currentPage, String column, String sort, String username) {
+        Example example = new Example(QuestionInfo.class);
+        Example.Criteria criteria = example.createCriteria();
+        if (!Arrays.isNullOrEmpty(types)) {
+            criteria.andIn("questionType", Arrays.asList(types));
+        }
+        criteria.andEqualTo("username", username);
+        if (!StringUtils.isBlank(column) && !StringUtils.equals(sort, "normal")) {
+            String target = null;
+            if (StringUtils.equals(column, "createdTime")) {
+                target = "created_time";
+            } else if (StringUtils.equals(column, "lastUpdatedTime")) {
+                target = "last_updated_time";
+            } else if (StringUtils.equals(column, "visitedCount")) {
+                target = "visited_count";
+            }
+            example.setOrderByClause(target + " " + sort);
+        }
+        PageHelper.startPage(currentPage, 7);
+        List<QuestionInfo> questionInfos = questionInfoMapper.selectByExample(example);
+        PageInfo<QuestionInfo> pageInfo = new PageInfo<>(questionInfos);
+        return new PageResult<>(pageInfo.getTotal(), pageInfo.getPages(), pageInfo.getList(), pageInfo.getPageNum());
+    }
+
+    public void deleteQuestionInfo(String id, String questionType) throws Exception {
+        if (StringUtils.equals(questionType, "word")) {
+            deleteWordQuestionInfo(id);
+        } else if (StringUtils.equals(questionType, "ppt")) {
+            deletePptQuestionInfo(id);
+        } else if (StringUtils.equals(questionType, "excel")) {
+            deleteExcelQuestionInfo(id);
+        } else {
+            throw new Exception();
+        }
+    }
+
+    private void deleteWordQuestionInfo(String id) {
+        QuestionStepWord record = new QuestionStepWord();
+        record.setId(id);
+        List<QuestionStepWord> stepWords = questionStepWordMapper.select(record);
+        //删除表中的差异信息
+        stepWords.forEach(stepWord -> {
+            QuestionDiffWord diffRecord = new QuestionDiffWord();
+            diffRecord.setStepId(stepWord.getStepId());
+            questionDiffWordMapper.delete(diffRecord);
+        });
+        questionStepWordMapper.delete(record);
+        questionInfoMapper.deleteByPrimaryKey(id);
+        File file = new File(ROOT_PATH + "/word/" + id);
+        if (file.exists()) {
+            try {
+                FileUtils.forceDelete(file);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void deletePptQuestionInfo(String id) {
+        QuestionStepPpt record = new QuestionStepPpt();
+        record.setId(id);
+        List<QuestionStepPpt> stepPpts = questionStepPptMapper.select(record);
+        //删除表中的差异信息
+        stepPpts.forEach(stepPpt -> {
+            QuestionDiffPpt diffRecord = new QuestionDiffPpt();
+            diffRecord.setStepId(stepPpt.getStepId());
+            questionDiffPptMapper.delete(diffRecord);
+        });
+        questionStepPptMapper.delete(record);
+        questionInfoMapper.deleteByPrimaryKey(id);
+        File file = new File(ROOT_PATH + "/Ppt/" + id);
+        if (file.exists()) {
+            try {
+                FileUtils.forceDelete(file);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void deleteExcelQuestionInfo(String id) {
+        QuestionStepExcel record = new QuestionStepExcel();
+        record.setId(id);
+        List<QuestionStepExcel> stepExcels = questionStepExcelMapper.select(record);
+        //删除表中的差异信息
+        stepExcels.forEach(stepExcel -> {
+            QuestionDiffExcel diffRecord = new QuestionDiffExcel();
+            diffRecord.setStepId(stepExcel.getStepId());
+            questionDiffExcelMapper.delete(diffRecord);
+        });
+        questionStepExcelMapper.delete(record);
+        questionInfoMapper.deleteByPrimaryKey(id);
+        File file = new File(ROOT_PATH + "/Excel/" + id);
+        if (file.exists()) {
+            try {
+                FileUtils.forceDelete(file);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 }

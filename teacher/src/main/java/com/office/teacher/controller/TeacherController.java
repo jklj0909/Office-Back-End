@@ -48,7 +48,7 @@ public class TeacherController {
         }
         try {
             String cookieValue = MAPPER.writeValueAsString(message.getInfo());
-            CookieUtils.setCookie(request, response, USER_COOKIE, cookieValue, 60 * 30);
+            CookieUtils.setCookie(request, response, USER_COOKIE, cookieValue, 60 * 60);
         } catch (JsonProcessingException e) {
             e.printStackTrace();
         }
