@@ -178,15 +178,16 @@ public class XmlDiffUtils {
     /**
      * 比较xml
      */
-    public static ArrayList<String> dealXmlDiff(String filepath_1, String filepath_2, String destination) {
+    public static ArrayList<String> dealXmlDiff(String filepath_1, String filepath_2, String destination1,String destination2) {
         strings.clear();
         zipMyFile(filepath_1, "old(1)");
         zipMyFile(filepath_2, "new(1)");
-        destination = destination.replaceAll("\\\\", "/");
-        diffTwoXml(destination + "/old(1)/word/document.xml", destination + "/new(1)/word/document.xml");
+        destination1 = destination1.replaceAll("\\\\", "/");
+        destination2 = destination2.replaceAll("\\\\", "/");
+        diffTwoXml(destination1 + "/old(1)/word/document.xml", destination2 + "/new(1)/word/document.xml");
         try {
-            FileUtils.deleteDirectory(new File(destination + "/old(1)"));
-            FileUtils.deleteDirectory(new File(destination + "/new(1)"));
+            FileUtils.deleteDirectory(new File(destination1 + "/old(1)"));
+            FileUtils.deleteDirectory(new File(destination2 + "/new(1)"));
         } catch (IOException e) {
             e.printStackTrace();
         }

@@ -1,6 +1,5 @@
 package com.office.teacher.controller;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.office.common.entity.*;
 import com.office.common.utils.CookieUtils;
@@ -11,11 +10,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 @Controller
 @RequestMapping("mark")
@@ -176,13 +175,23 @@ public class QuestionInfoController {
         return ResponseEntity.ok().build();
     }
 
+    /**
+     * 分页获取用户试题信息
+     *
+     * @param types   试题类型
+     * @param sort    排序方式,取值asc或desc
+     * @param column  待排序的列名
+     * @param page    当前页码
+     * @param request 请求
+     * @author jie
+     **/
     @GetMapping("getQuestionInfo")
     public ResponseEntity<PageResult<QuestionInfo>> getQuestionInfo
-            (HttpServletRequest request,
-             @RequestParam(value = "types", required = false) String[] types,
-             @RequestParam(value = "page", defaultValue = "1") Integer page,
-             @RequestParam(value = "column", required = false) String column,
-             @RequestParam(value = "sort", defaultValue = "asc") String sort) {
+    (HttpServletRequest request,
+     @RequestParam(value = "types", required = false) String[] types,
+     @RequestParam(value = "page", defaultValue = "1") Integer page,
+     @RequestParam(value = "column", required = false) String column,
+     @RequestParam(value = "sort", defaultValue = "asc") String sort) {
         String username = null;
         try {
             username = getUsername(request);
@@ -191,7 +200,7 @@ public class QuestionInfoController {
             return ResponseEntity.notFound().build();
         }
         try {
-            PageResult<QuestionInfo> questionInfos = questionInfoService.getQuestionInfo(types, page, column, sort, username);
+            PageResult<QuestionInfo> questionInfos = questionInfoService.getQuestionInfo(types, page, column, sort, username, null, false);
             return ResponseEntity.ok(questionInfos);
         } catch (Exception e) {
             e.printStackTrace();
@@ -199,6 +208,39 @@ public class QuestionInfoController {
         return ResponseEntity.badRequest().build();
     }
 
+    /**
+     * 分页获取所有试题信息
+     *
+     * @param types  试题类型
+     * @param sort   排序方式,取值asc或desc
+     * @param column 待排序的列名
+     * @param page   当前页码
+     * @author jie
+     **/
+    @GetMapping("getAllQuestionInfo")
+    public ResponseEntity<PageResult<QuestionInfo>> getAllQuestionInfo
+    (@RequestParam(value = "types", required = false) String[] types,
+     @RequestParam(value = "page", defaultValue = "1") Integer page,
+     @RequestParam(value = "column", required = false) String column,
+     @RequestParam(value = "sort", defaultValue = "asc") String sort,
+     @RequestParam(value = "search", required = false) String search) {
+        try {
+            PageResult<QuestionInfo> questionInfos = questionInfoService.getQuestionInfo(types, page, column, sort, null, search, true);
+            return ResponseEntity.ok(questionInfos);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return ResponseEntity.badRequest().build();
+    }
+
+    /**
+     * 删除word试题
+     *
+     * @param id           试题id
+     * @param request      请求
+     * @param questionType 试题类型
+     * @author jie
+     **/
     @DeleteMapping("deleteQuestionInfo")
     public ResponseEntity deleteQuestionInfo(HttpServletRequest request, @RequestParam("id") String id, @RequestParam("questionType") String questionType) {
         try {
@@ -210,11 +252,38 @@ public class QuestionInfoController {
         return ResponseEntity.ok().build();
     }
 
+    /**
+     * 工具类:获取用户信息
+     *
+     * @param request 请求
+     * @author jie
+     **/
     private static String getUsername(HttpServletRequest request) throws Exception {
         String value = CookieUtils.getCookieValue(request, USER_COOKIE, true);
         if (StringUtils.isBlank(value)) {
             return null;
         }
         return MAPPER.readValue(value, TeacherInfo.class).getUsername();
+    }
+
+    /**
+     * 下载步骤文件
+     *
+     * @param questionType 试题类型
+     * @param id           试题id
+     * @param step         试题步骤
+     * @param response     响应
+     * @author jie
+     **/
+    @GetMapping("download/{questionType}/{id}/{step}")
+    public ResponseEntity downloadStepFile(HttpServletRequest request, HttpServletResponse response,
+                                           @PathVariable("questionType") String questionType, @PathVariable("id") String id, @PathVariable("step") Integer step) {
+        try {
+            String username = getUsername(request);
+            String filename = questionInfoService.downloadStepFile(response, questionType, id, username, step);
+            return ResponseEntity.ok().body(filename);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 }

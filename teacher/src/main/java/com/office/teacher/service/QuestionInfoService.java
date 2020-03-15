@@ -10,6 +10,7 @@ import com.office.common.entity.step.QuestionStepExcel;
 import com.office.common.entity.step.QuestionStepPpt;
 import com.office.common.entity.step.QuestionStepWord;
 import com.office.common.utils.CodecUtils;
+import com.office.common.utils.FileUtil;
 import com.office.common.utils.XmlDiffUtils;
 import com.office.teacher.repository.*;
 import org.apache.commons.io.FileUtils;
@@ -23,6 +24,8 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.web.multipart.MultipartFile;
 import tk.mybatis.mapper.entity.Example;
 
+import javax.activation.MimetypesFileTypeMap;
+import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.IOException;
 import java.sql.Timestamp;
@@ -437,7 +440,7 @@ public class QuestionInfoService {
             String oldPath = parentPath + "/" + (i - 1) + ".docx";
             String newPath = parentPath + "/" + i + ".docx";
             try {
-                list = XmlDiffUtils.dealXmlDiff(oldPath, newPath, parentPath);
+                list = XmlDiffUtils.dealXmlDiff(oldPath, newPath, parentPath, parentPath);
             } catch (Exception e) {
                 e.printStackTrace();
                 message.setSuccess(false);
@@ -465,13 +468,34 @@ public class QuestionInfoService {
         return message;
     }
 
-    public PageResult<QuestionInfo> getQuestionInfo(String[] types, Integer currentPage, String column, String sort, String username) {
+    /**
+     * 分页查找用户试题信息
+     *
+     * @param column      排序查找的列名
+     * @param currentPage 当前页
+     * @param sort        升序还是降序asc或desc
+     * @param types       文件类型
+     * @param username    用户名
+     * @author jie
+     **/
+    public PageResult<QuestionInfo> getQuestionInfo(String[] types, Integer currentPage, String column, String sort, String username, String search, boolean isStudent) {
         Example example = new Example(QuestionInfo.class);
         Example.Criteria criteria = example.createCriteria();
+        Example e = new Example(QuestionInfo.class);
+        Example.Criteria c = null;
         if (!Arrays.isNullOrEmpty(types)) {
             criteria.andIn("questionType", Arrays.asList(types));
         }
-        criteria.andEqualTo("username", username);
+        if (username != null) {
+            criteria.andEqualTo("username", username);
+        }
+        if (isStudent) {
+            criteria.andEqualTo("state", 31);
+        }
+        if (!StringUtils.isBlank(search)) {
+            c = e.createCriteria();
+            c.orLike("title", "%" + search + "%").orLike("description", "%" + search + "%");
+        }
         if (!StringUtils.isBlank(column) && !StringUtils.equals(sort, "normal")) {
             String target = null;
             if (StringUtils.equals(column, "createdTime")) {
@@ -483,12 +507,22 @@ public class QuestionInfoService {
             }
             example.setOrderByClause(target + " " + sort);
         }
+        if (c != null) {
+            example.and(c);
+        }
         PageHelper.startPage(currentPage, 7);
         List<QuestionInfo> questionInfos = questionInfoMapper.selectByExample(example);
         PageInfo<QuestionInfo> pageInfo = new PageInfo<>(questionInfos);
         return new PageResult<>(pageInfo.getTotal(), pageInfo.getPages(), pageInfo.getList(), pageInfo.getPageNum());
     }
 
+    /**
+     * 删除试题
+     *
+     * @param id           试题id
+     * @param questionType 试题类型
+     * @author jie
+     **/
     public void deleteQuestionInfo(String id, String questionType) throws Exception {
         if (StringUtils.equals(questionType, "word")) {
             deleteWordQuestionInfo(id);
@@ -501,6 +535,12 @@ public class QuestionInfoService {
         }
     }
 
+    /**
+     * 删除word试题
+     *
+     * @param id 试题id
+     * @author jie
+     **/
     private void deleteWordQuestionInfo(String id) {
         QuestionStepWord record = new QuestionStepWord();
         record.setId(id);
@@ -523,6 +563,12 @@ public class QuestionInfoService {
         }
     }
 
+    /**
+     * 删除ppt试题
+     *
+     * @param id 试题id
+     * @author jie
+     **/
     private void deletePptQuestionInfo(String id) {
         QuestionStepPpt record = new QuestionStepPpt();
         record.setId(id);
@@ -545,6 +591,12 @@ public class QuestionInfoService {
         }
     }
 
+    /**
+     * 删除excel试题
+     *
+     * @param id 试题id
+     * @author jie
+     **/
     private void deleteExcelQuestionInfo(String id) {
         QuestionStepExcel record = new QuestionStepExcel();
         record.setId(id);
@@ -566,4 +618,34 @@ public class QuestionInfoService {
             }
         }
     }
+
+    /**
+     * 下载步骤文件
+     *
+     * @param questionType 试题类型
+     * @param id           试题id
+     * @param step         试题步骤
+     * @param response     响应
+     * @author jie
+     **/
+    public String downloadStepFile(HttpServletResponse response, String questionType, String id, String username, Integer step) throws Exception {
+        String parentPath = ROOT_PATH + "/" + questionType + "/" + id + "/" + username;
+        String suffix = FileUtil.getFileSuffix(questionType);
+        if (suffix == null) {
+            throw new Exception();
+        }
+        String filename = step + suffix;
+        File file = new File(parentPath + "/" + filename);
+        if (!file.exists()) {
+            throw new Exception();
+        }
+        String type = new MimetypesFileTypeMap().getContentType(filename);
+        response.setHeader("Content-type", type);
+        response.setCharacterEncoding("utf-8");
+        response.addHeader("Content-Disposition", "attachment;fileName=" + filename);
+        FileUtil.download(filename, parentPath, response);
+        return filename;
+    }
+
+
 }

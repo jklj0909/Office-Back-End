@@ -53,7 +53,7 @@ public class StudentController {
         }
         try {
             String cookieValue = MAPPER.writeValueAsString(message.getInfo());
-            CookieUtils.setCookie(request, response, USER_COOKIE, cookieValue, 60 * 30);
+            CookieUtils.setCookie(request, response, USER_COOKIE, cookieValue, 60 * 60);
         } catch (JsonProcessingException e) {
             e.printStackTrace();
         }
@@ -61,14 +61,14 @@ public class StudentController {
     }
 
     @GetMapping("checkLogin")
-    public ResponseEntity<ReplyMessage> checkLogin(HttpServletRequest request, HttpServletResponse response) {
+    public ResponseEntity<ReplyMessage> checkLogin(HttpServletRequest request) {
         ReplyMessage message = new ReplyMessage();
         String value = CookieUtils.getCookieValue(request, USER_COOKIE, true);
         if (StringUtils.isBlank(value)) {
             return ResponseEntity.notFound().build();
         }
         try {
-            message.setInfo(MAPPER.readValue(value, Object.class));
+            message.setInfo(MAPPER.readValue(value, StudentInfo.class));
         } catch (JsonProcessingException e) {
             e.printStackTrace();
             return ResponseEntity.notFound().build();

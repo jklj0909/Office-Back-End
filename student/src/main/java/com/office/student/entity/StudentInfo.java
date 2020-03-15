@@ -29,4 +29,12 @@ public class StudentInfo implements Serializable {
         this.username = username;
         this.email = email;
     }
+
+    @Override
+    public String toString() {
+        return "StudentInfo{" +
+                "username='" + username + '\'' +
+                ", email='" + email + '\'' +
+                '}';
+    }
 }

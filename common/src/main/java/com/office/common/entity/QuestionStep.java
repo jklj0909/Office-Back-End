@@ -7,6 +7,7 @@ public class QuestionStep {
     private Integer step;
     private String stepId;
     private String stepDescription;
+    private Double stepAverageScore;
     @Transient
     private String questionType;
 
@@ -40,6 +41,14 @@ public class QuestionStep {
 
     public void setStepDescription(String stepDescription) {
         this.stepDescription = stepDescription;
+    }
+
+    public Double getStepAverageScore() {
+        return stepAverageScore;
+    }
+
+    public void setStepAverageScore(Double stepAverageScore) {
+        this.stepAverageScore = stepAverageScore;
     }
 
     public String getQuestionType() {
