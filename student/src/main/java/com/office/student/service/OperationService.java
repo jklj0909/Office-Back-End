@@ -8,12 +8,14 @@ import com.office.common.entity.step.QuestionStepWord;
 import com.office.common.utils.CodecUtils;
 import com.office.common.utils.FileUtil;
 import com.office.common.utils.XmlDiffUtils;
+import com.office.student.entity.QuestionStepDetail;
 import com.office.student.entity.Student;
 import com.office.student.entity.StudentQuestionInfo;
 import com.office.student.entity.StudentQuestionStep;
 import com.office.student.repository.*;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
+import org.assertj.core.util.Arrays;
 import org.assertj.core.util.diff.DiffUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -69,12 +71,15 @@ public class OperationService {
 
     public String downloadRawFile(HttpServletResponse response, String type, String id, String filename) throws Exception {
         String parentPath = ROOT_PATH + "/" + type + "/" + id;
+        downloadFile(filename, parentPath, response);
+        return filename;
+    }
+
+    private void wrapResponse(HttpServletResponse response, String filename) {
         String contentType = new MimetypesFileTypeMap().getContentType(filename);
         response.setHeader("Content-type", contentType);
         response.setCharacterEncoding("utf-8");
         response.addHeader("Content-Disposition", "attachment;fileName=" + filename);
-        FileUtil.download(filename, parentPath, response);
-        return filename;
     }
 
     public String getFilename(String type, String id) {
@@ -134,7 +139,7 @@ public class OperationService {
         uploadFile.transferTo(file);
     }
 
-    public ReplyMessage<List<StudentQuestionStep>> submitAnswer(String studentUsername, String questionType, String id) throws Exception {
+    public ReplyMessage submitAnswer(String studentUsername, String questionType, String id) throws Exception {
         StudentQuestionInfo record = new StudentQuestionInfo();
         record.setQuestionId(id);
         record.setStudentUsername(studentUsername);
@@ -157,8 +162,8 @@ public class OperationService {
         throw new Exception();
     }
 
-    private ReplyMessage<List<StudentQuestionStep>> submitWordAnswer(String parentPath, String answerPath, String id, String studentQuestionInfoId) throws Exception {
-        ReplyMessage<List<StudentQuestionStep>> message = new ReplyMessage();
+    private ReplyMessage submitWordAnswer(String parentPath, String answerPath, String id, String studentQuestionInfoId) throws Exception {
+        ReplyMessage message = new ReplyMessage();
         QuestionInfo questionInfo = questionInfoMapper.selectByPrimaryKey(id);
         String createdUsername = questionInfo.getUsername();
         String rawFilePath = parentPath + "/" + createdUsername + "/0.docx";
@@ -193,6 +198,9 @@ public class OperationService {
                 }
                 result = ((double) count) / questionDiffWordList.size() > STANDARD_SCORE ? 1 : 0;
             }
+            if (stepWord.getStepAverageScore() == null) {
+                stepWord.setStepAverageScore(0.00);
+            }
             //计算该步骤平均分
             stepWord.setStepAverageScore(
                     ((double) (stepWord.getStepAverageScore() * questionInfo.getVisitedCount() + result)) / (questionInfo.getVisitedCount() + 1));
@@ -209,28 +217,105 @@ public class OperationService {
         studentQuestionInfo.setState(true);
         studentQuestionInfo.setScore(score);
         studentQuestionInfoMapper.updateByPrimaryKeySelective(studentQuestionInfo);
+        if (questionInfo.getAverageScore() == null) {
+            questionInfo.setAverageScore(0.00);
+        }
         questionInfo.setAverageScore(((double)
                 (questionInfo.getAverageScore() * questionInfo.getVisitedCount() + score)) / (questionInfo.getVisitedCount() + 1));
         questionInfo.setVisitedCount(questionInfo.getVisitedCount() + 1);
         questionInfoMapper.updateByPrimaryKeySelective(questionInfo);
-        StudentQuestionStep stuStepRecord = new StudentQuestionStep();
-        stuStepRecord.setId(studentQuestionInfoId);
-        List<StudentQuestionStep> questionStepList = studentQuestionStepMapper.select(stuStepRecord);
         message.setSuccess(true);
-        message.setMessage(Double.toString(score));
-        message.setInfo(questionStepList);
+        message.setMessage(studentQuestionInfoId);
         return message;
     }
 
-    private ReplyMessage<List<StudentQuestionStep>> submitPptAnswer(String parentPath, String answerPath, String id, String studentQuestionInfoId) {
-        ReplyMessage<List<StudentQuestionStep>> message = new ReplyMessage();
+    private ReplyMessage submitPptAnswer(String parentPath, String answerPath, String id, String studentQuestionInfoId) {
+        ReplyMessage message = new ReplyMessage();
         message.setSuccess(false);
         return message;
     }
 
-    private ReplyMessage<List<StudentQuestionStep>> submitExcelAnswer(String parentPath, String answerPath, String id, String studentQuestionInfoId) {
-        ReplyMessage<List<StudentQuestionStep>> message = new ReplyMessage();
+    private ReplyMessage submitExcelAnswer(String parentPath, String answerPath, String id, String studentQuestionInfoId) {
+        ReplyMessage message = new ReplyMessage();
         message.setSuccess(false);
         return message;
+    }
+
+    public QuestionInfo checkIfExists(String id) {
+        return questionInfoMapper.selectByPrimaryKey(id);
+    }
+
+    public ReplyMessage<List<QuestionStepDetail>> getStudentResult(String qid) throws Exception {
+        ReplyMessage<List<QuestionStepDetail>> message = new ReplyMessage<>();
+        StudentQuestionInfo studentQuestionInfo = studentQuestionInfoMapper.selectByPrimaryKey(qid);
+        String questionId = studentQuestionInfo.getQuestionId();
+        Double score = studentQuestionInfo.getScore();
+        QuestionInfo questionInfo = questionInfoMapper.selectByPrimaryKey(questionId);
+        Double averageScore = questionInfo.getAverageScore();
+        message.setMessage(score.toString() + ";" + averageScore.toString() + ";" + questionInfo.getTitle() + ";" + questionInfo.getQuestionType());
+        if (StringUtils.equals(studentQuestionInfo.getQuestionType(), "word")) {
+            message.setInfo(getWordStudentResult(qid, questionId));
+            message.setSuccess(true);
+        } else if (StringUtils.equals(studentQuestionInfo.getQuestionType(), "ppt")) {
+            message.setInfo(getPptStudentResult(qid, questionId));
+            message.setSuccess(true);
+        } else if (StringUtils.equals(studentQuestionInfo.getQuestionType(), "excel")) {
+            message.setInfo(getExcelStudentResult(qid, questionId));
+            message.setSuccess(true);
+        }
+        return message;
+    }
+
+    private List<QuestionStepDetail> getWordStudentResult(String qid, String questionId) {
+        List<QuestionStepDetail> questionStepDetailList = new ArrayList<>();
+        StudentQuestionStep studentQuestionStepRecord = new StudentQuestionStep();
+        QuestionStepWord questionStepWordRecord = new QuestionStepWord();
+        questionStepWordRecord.setId(questionId);
+        studentQuestionStepRecord.setId(qid);
+        for (Integer i = 1; i <= 30; i++) {
+            studentQuestionStepRecord.setStep(i);
+            StudentQuestionStep studentQuestionStep = studentQuestionStepMapper.selectOne(studentQuestionStepRecord);
+            questionStepWordRecord.setStep(i);
+            QuestionStepWord questionStepWord = questionStepWordMapper.selectOne(questionStepWordRecord);
+            QuestionStepDetail questionStepDetail = new QuestionStepDetail();
+            questionStepDetail.setStep(i);
+            questionStepDetail.setStepScore(studentQuestionStep.getScore());
+            questionStepDetail.setStepDescription(questionStepWord.getStepDescription());
+            questionStepDetail.setStepAverageScore(questionStepWord.getStepAverageScore());
+            questionStepDetailList.add(questionStepDetail);
+        }
+        return questionStepDetailList;
+    }
+
+    private List<QuestionStepDetail> getPptStudentResult(String qid, String questionId) {
+        return null;
+    }
+
+    private List<QuestionStepDetail> getExcelStudentResult(String qid, String questionId) {
+        return null;
+    }
+
+    public void downloadStu(HttpServletResponse response, String studentQid) throws Exception {
+        StudentQuestionInfo studentQuestionInfo = studentQuestionInfoMapper.selectByPrimaryKey(studentQid);
+        String parentPath = ROOT_PATH + "/" + studentQuestionInfo.getQuestionType() + "/" + studentQuestionInfo.getQuestionId() + "/stu_" + studentQuestionInfo.getStudentUsername();
+        String filename = studentQuestionInfo.getPractiseNumber() + FileUtil.getFileSuffix(studentQuestionInfo.getQuestionType());
+        downloadFile(filename, parentPath, response);
+    }
+
+    public void downloadTea(HttpServletResponse response, String studentQid, Integer step) throws Exception {
+        StudentQuestionInfo studentQuestionInfo = studentQuestionInfoMapper.selectByPrimaryKey(studentQid);
+        QuestionInfo questionInfo = questionInfoMapper.selectByPrimaryKey(studentQuestionInfo.getQuestionId());
+        String parentPath = ROOT_PATH + "/" + questionInfo.getQuestionType() + "/" + questionInfo.getId() + "/" + questionInfo.getUsername();
+        String filename = step + FileUtil.getFileSuffix(questionInfo.getQuestionType());
+        downloadFile(filename, parentPath, response);
+    }
+
+    private void downloadFile(String filename, String parentPath, HttpServletResponse response) throws Exception {
+        File file = new File(parentPath + "/" + filename);
+        if (!file.exists()) {
+            throw new Exception();
+        }
+        wrapResponse(response, filename);
+        FileUtil.download(filename, parentPath, response);
     }
 }

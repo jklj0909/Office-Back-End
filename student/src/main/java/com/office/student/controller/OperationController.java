@@ -1,8 +1,10 @@
 package com.office.student.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.office.common.entity.QuestionInfo;
 import com.office.common.entity.ReplyMessage;
 import com.office.common.utils.CookieUtils;
+import com.office.student.entity.QuestionStepDetail;
 import com.office.student.entity.StudentInfo;
 import com.office.student.entity.StudentQuestionStep;
 import com.office.student.service.OperationService;
@@ -68,7 +70,7 @@ public class OperationController {
     }
 
     @PostMapping("submitAnswer/{questionType}/{id}")
-    public ResponseEntity<ReplyMessage<List<StudentQuestionStep>>> submitAnswer(
+    public ResponseEntity<ReplyMessage> submitAnswer(
             HttpServletRequest request,
             @PathVariable("questionType") String questionType, @PathVariable("id") String id) {
         String studentUsername = null;
@@ -81,7 +83,7 @@ public class OperationController {
             return ResponseEntity.badRequest().build();
         }
         try {
-            ReplyMessage<List<StudentQuestionStep>> message = operationService.submitAnswer(studentUsername, questionType, id);
+            ReplyMessage message = operationService.submitAnswer(studentUsername, questionType, id);
             if (message.isSuccess()) {
                 return ResponseEntity.status(HttpStatus.ACCEPTED).body(message);
             } else {
@@ -91,6 +93,50 @@ public class OperationController {
             e.printStackTrace();
         }
         return ResponseEntity.badRequest().build();
+    }
+
+    @RequestMapping("checkIfExists")
+    public ResponseEntity<QuestionInfo> checkIfExists(@RequestParam("id") String id) {
+        QuestionInfo questionInfo = operationService.checkIfExists(id);
+        if (questionInfo == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(questionInfo);
+    }
+
+    @RequestMapping("getStudentResult/{qid}")
+    public ResponseEntity<ReplyMessage<List<QuestionStepDetail>>> getStudentResult(@PathVariable("qid") String qid) {
+        try {
+            ReplyMessage<List<QuestionStepDetail>> message = operationService.getStudentResult(qid);
+            if (message.isSuccess()) {
+                return ResponseEntity.ok(message);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @RequestMapping("downloadStu/{studentQid}")
+    public ResponseEntity downloadStu(HttpServletResponse response, @PathVariable("studentQid") String studentQid) {
+        try {
+            operationService.downloadStu(response, studentQid);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @RequestMapping("downloadTea/{studentQid}/{step}")
+    public ResponseEntity downloadStu(HttpServletResponse response, @PathVariable("studentQid") String studentQid, @PathVariable("step") Integer step) {
+        try {
+            operationService.downloadTea(response, studentQid, step);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return ResponseEntity.notFound().build();
     }
 
     protected String getStudentUsername(HttpServletRequest request) throws Exception {
