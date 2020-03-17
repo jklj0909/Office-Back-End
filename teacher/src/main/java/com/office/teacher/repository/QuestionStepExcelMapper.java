@@ -1,6 +1,6 @@
 package com.office.teacher.repository;
 
-import com.office.common.entity.step.QuestionStepExcel;
+import com.office.common.entity.step.child.QuestionStepExcel;
 import org.springframework.stereotype.Repository;
 import tk.mybatis.mapper.common.Mapper;
 

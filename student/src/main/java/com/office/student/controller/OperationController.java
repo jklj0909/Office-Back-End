@@ -2,11 +2,10 @@ package com.office.student.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.office.common.entity.QuestionInfo;
-import com.office.common.entity.ReplyMessage;
+import com.office.common.entity.wrap.ReplyMessage;
 import com.office.common.utils.CookieUtils;
 import com.office.student.entity.QuestionStepDetail;
 import com.office.student.entity.StudentInfo;
-import com.office.student.entity.StudentQuestionStep;
 import com.office.student.service.OperationService;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -139,7 +138,7 @@ public class OperationController {
         return ResponseEntity.notFound().build();
     }
 
-    protected String getStudentUsername(HttpServletRequest request) throws Exception {
+    protected static String getStudentUsername(HttpServletRequest request) throws Exception {
         String cookieValue = CookieUtils.getCookieValue(request, USER_COOKIE, true);
         if (StringUtils.isBlank(cookieValue)) {
             return null;

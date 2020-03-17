@@ -1,6 +1,6 @@
 package com.office.common.utils;
 
-import com.office.common.entity.MyElement;
+import com.office.common.entity.wrap.MyElement;
 import org.apache.commons.io.FileUtils;
 import org.dom4j.Attribute;
 import org.dom4j.Document;

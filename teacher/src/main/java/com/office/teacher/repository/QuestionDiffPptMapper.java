@@ -1,6 +1,6 @@
 package com.office.teacher.repository;
 
-import com.office.common.entity.diff.QuestionDiffPpt;
+import com.office.common.entity.diff.child.QuestionDiffPpt;
 import org.springframework.stereotype.Repository;
 import tk.mybatis.mapper.common.Mapper;
 

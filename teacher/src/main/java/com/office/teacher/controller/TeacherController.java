@@ -2,7 +2,7 @@ package com.office.teacher.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.office.common.entity.ReplyMessage;
+import com.office.common.entity.wrap.ReplyMessage;
 import com.office.common.utils.CookieUtils;
 import com.office.teacher.entity.Teacher;
 import com.office.teacher.entity.TeacherInfo;

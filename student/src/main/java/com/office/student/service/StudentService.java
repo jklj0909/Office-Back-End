@@ -1,6 +1,6 @@
 package com.office.student.service;
 
-import com.office.common.entity.ReplyMessage;
+import com.office.common.entity.wrap.ReplyMessage;
 import com.office.common.utils.CodecUtils;
 import com.office.student.entity.Student;
 import com.office.student.entity.StudentInfo;
