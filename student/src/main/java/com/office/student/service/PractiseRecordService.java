@@ -83,7 +83,7 @@ public class PractiseRecordService {
         practiseRecord.setScoreList();
         practiseRecord.setStuAnswerList();
         testResult.put("selectionAnswer", practiseRecord.getStuAnswerList());
-        testResult.put("selectionScore", practiseRecord.getStuAnswerList());
+        testResult.put("selectionScore", practiseRecord.getScoreList());
         List<String> selectionIdList = practiseRecord.getSelectionIdList();
         List<Selection> selectionList = new ArrayList<>();
         for (String selectionId : selectionIdList) {

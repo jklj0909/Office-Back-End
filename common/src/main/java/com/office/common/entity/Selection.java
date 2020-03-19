@@ -18,8 +18,6 @@ public class Selection {
     private String questionType;
     private Double averageScore;
     private Long practiseNum;
-    @Transient
-    private List<String> questionOptionList;
 
     public String getId() {
         return id;
@@ -77,14 +75,4 @@ public class Selection {
         this.practiseNum = practiseNum;
     }
 
-    public void setOptions() throws Exception {
-        if (StringUtils.isBlank(questionOptions)) {
-            throw new Exception("question options is null!");
-        }
-        this.questionOptionList = Arrays.asList(questionOptions.split("&"));
-    }
-
-    public List<String> getOptions() {
-        return questionOptionList;
-    }
 }
